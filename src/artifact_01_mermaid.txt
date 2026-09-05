@@ -1,0 +1,58 @@
+flowchart TD
+    subgraph Actors ["Participants & Signers"]
+        Sponsor["🎓 University Sponsor / Endowment / DAO\n(Signer)"]
+        Student["🧑‍🎓 Student Researcher / Scholar\n(Signer / Beneficiary)"]
+        Advisor["👨‍🏫 Academic Advisor / Validator\n(Signer / Milestone Attestor)"]
+        Keeper["🤖 Cranker / Keeper Bot\n(Permissionless Pump)"]
+    end
+
+    subgraph SolanaRuntime ["Solana Program Runtime: BolsaFi Engine"]
+        Program["📜 BolsaFi Program\n(ID: Bo1saFi1111111111111111111111111111111111111)"]
+
+        subgraph PDA_State ["PDA State Accounts"]
+            EndowmentPool["🏛️ Endowment Pool Account\n['endowment', sponsor, pool_id]\n- total_deposited\n- total_allocated\n- authority: Pubkey"]
+            StreamGrant["📝 Grant Stream Account\n['grant', pool, student]\n- rate_per_second: u64\n- last_claimed_timestamp: i64\n- total_funded: u64\n- total_claimed: u64\n- milestone_count: u8\n- is_paused: bool"]
+            MilestonePDA["🎯 Milestone Account\n['milestone', grant, milestone_idx]\n- unlock_bonus_amount: u64\n- is_attested: bool\n- advisor: Pubkey"]
+        end
+
+        subgraph Vaults ["Token Layer (SPL / Token-2022)"]
+            PoolVault["🔒 Pool Escrow Token Account (ATA)\nOwner: EndowmentPool PDA\nAsset: BRZ / USDC"]
+            StudentATA["💳 Student Token Account (ATA)\nOwner: Student Pubkey"]
+        end
+    end
+
+    subgraph ExternalGuards ["Security & Clock Verifiers"]
+        ClockSysvar["⏱️ Clock Sysvar\n(unix_timestamp)"]
+        TokenProg["🪙 SPL Token Program"]
+    end
+
+    %% Execution Flows
+    Sponsor -->|1. Initialize Pool & Deposit BRZ| Program
+    Program -->|Derives PDA & Mints Escrow| EndowmentPool
+    Program -->|Transfers SPL Tokens| PoolVault
+
+    Sponsor -->|2. Create Student Stream & Set Milestones| Program
+    Program -->|Derives Grant PDA| StreamGrant
+    Program -->|Initializes Milestone Checks| MilestonePDA
+
+    Advisor -->|3. Attest Academic Milestone Completion| Program
+    Program -->|Signs & Unlocks Milestone Bonus| MilestonePDA
+
+    Student -->|4. Claim Accrued Research Stream| Program
+    Program -->|Queries Timestamp| ClockSysvar
+    Program -->|Calculates: vested = rate * delta_t + milestones| StreamGrant
+    Program -->|CPI: Token::Transfer with PDA Seeds| TokenProg
+    TokenProg -->|Disburses BRZ/USDC| StudentATA
+
+    Sponsor -->|5. Emergency Pause / Clawback Unvested| Program
+    Program -->|Refunds Unvested Balance| PoolVault
+
+    style Sponsor fill:#1E293B,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC
+    style Student fill:#1E293B,stroke:#4ADE80,stroke-width:2px,color:#F8FAFC
+    style Advisor fill:#1E293B,stroke:#F59E0B,stroke-width:2px,color:#F8FAFC
+    style Program fill:#0F172A,stroke:#A855F7,stroke-width:3px,color:#F8FAFC
+    style EndowmentPool fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC
+    style StreamGrant fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC
+    style MilestonePDA fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC
+    style PoolVault fill:#064E3B,stroke:#10B981,stroke-width:2px,color:#F8FAFC
+    style StudentATA fill:#064E3B,stroke:#10B981,stroke-width:2px,color:#F8FAFC
