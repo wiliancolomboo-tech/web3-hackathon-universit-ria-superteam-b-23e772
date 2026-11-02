@@ -1,58 +1,46 @@
 flowchart TD
-    subgraph Actors ["Participants & Signers"]
-        Sponsor["🎓 University Sponsor / Endowment / DAO\n(Signer)"]
-        Student["🧑‍🎓 Student Researcher / Scholar\n(Signer / Beneficiary)"]
-        Advisor["👨‍🏫 Academic Advisor / Validator\n(Signer / Milestone Attestor)"]
-        Keeper["🤖 Cranker / Keeper Bot\n(Permissionless Pump)"]
+    subgraph ClientLayer["Clients & University Actors"]
+        Uni["University / Grantor\n(Funder Signer)"]
+        Student["Student / Researcher\n(Recipient Signer)"]
+        Maker["P2P Liquidity Provider\n(PIX Off-Ramp Maker)"]
     end
 
-    subgraph SolanaRuntime ["Solana Program Runtime: BolsaFi Engine"]
-        Program["📜 BolsaFi Program\n(ID: Bo1saFi1111111111111111111111111111111111111)"]
-
-        subgraph PDA_State ["PDA State Accounts"]
-            EndowmentPool["🏛️ Endowment Pool Account\n['endowment', sponsor, pool_id]\n- total_deposited\n- total_allocated\n- authority: Pubkey"]
-            StreamGrant["📝 Grant Stream Account\n['grant', pool, student]\n- rate_per_second: u64\n- last_claimed_timestamp: i64\n- total_funded: u64\n- total_claimed: u64\n- milestone_count: u8\n- is_paused: bool"]
-            MilestonePDA["🎯 Milestone Account\n['milestone', grant, milestone_idx]\n- unlock_bonus_amount: u64\n- is_attested: bool\n- advisor: Pubkey"]
-        end
-
-        subgraph Vaults ["Token Layer (SPL / Token-2022)"]
-            PoolVault["🔒 Pool Escrow Token Account (ATA)\nOwner: EndowmentPool PDA\nAsset: BRZ / USDC"]
-            StudentATA["💳 Student Token Account (ATA)\nOwner: Student Pubkey"]
-        end
+    subgraph SecurityGuards["Security & Validation Boundary"]
+        ClockSys["Sysvar: Clock\n(Unix Timestamp Check)"]
+        SigVerify["Signer Verification\n(HasOne & Constraint Checks)"]
+        MathGuard["SafeMath & Overflow Guards\n(Checked Math & Floor Logic)"]
     end
 
-    subgraph ExternalGuards ["Security & Clock Verifiers"]
-        ClockSysvar["⏱️ Clock Sysvar\n(unix_timestamp)"]
-        TokenProg["🪙 SPL Token Program"]
+    subgraph ProgramState["PactoBRL On-Chain Protocol (Solana Program)"]
+        StreamPDA[("PDA: Stream Account\nSeeds: ['stream', funder, recipient, id]\n- rate_per_second\n- total_amount\n- claimed_amount\n- start_time / end_time")]
+        VaultPDA[("PDA: Vault Authority & ATA\nSeeds: ['vault', stream_pubkey]\n- Holds locked SPL tokens")]
+        EscrowPDA[("PDA: P2P PIX Escrow\nSeeds: ['pix_escrow', maker, student, id]\n- pix_e2e_hash\n- timelock_slot\n- state: Locked|Settled|Refunded")]
     end
 
-    %% Execution Flows
-    Sponsor -->|1. Initialize Pool & Deposit BRZ| Program
-    Program -->|Derives PDA & Mints Escrow| EndowmentPool
-    Program -->|Transfers SPL Tokens| PoolVault
+    subgraph SolanaCore["SPL Token Core Engine"]
+        TokenProg["SPL Token Program\n(TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)"]
+        StudentATA["Student ATA\n(Receives Streamed Tokens)"]
+        MakerATA["Maker ATA\n(Receives Collateral upon PIX verification)"]
+    end
 
-    Sponsor -->|2. Create Student Stream & Set Milestones| Program
-    Program -->|Derives Grant PDA| StreamGrant
-    Program -->|Initializes Milestone Checks| MilestonePDA
+    %% Flow of Grant Streaming
+    Uni -->|"1. create_stream(tokens, duration)"| StreamPDA
+    Uni -.->|"CPI Token Transfer"| TokenProg
+    TokenProg -->|"Escrows Tokens"| VaultPDA
 
-    Advisor -->|3. Attest Academic Milestone Completion| Program
-    Program -->|Signs & Unlocks Milestone Bonus| MilestonePDA
+    ClockSys -->|"Timestamp Introspection"| StreamPDA
+    Student -->|"2. withdraw_stream_accrual()"| StreamPDA
+    StreamPDA -->|"Math Verification"| MathGuard
+    StreamPDA -->|"Authority CPI Transfer"| TokenProg
+    TokenProg -->|"Disburses Accrued Tokens"| StudentATA
 
-    Student -->|4. Claim Accrued Research Stream| Program
-    Program -->|Queries Timestamp| ClockSysvar
-    Program -->|Calculates: vested = rate * delta_t + milestones| StreamGrant
-    Program -->|CPI: Token::Transfer with PDA Seeds| TokenProg
-    TokenProg -->|Disburses BRZ/USDC| StudentATA
+    %% Flow of P2P PIX Swap
+    Student -->|"3. open_pix_escrow(tokens, pix_key_hash)"| EscrowPDA
+    Maker -->|"4. confirm_pix_transfer(pix_receipt_sig)"| EscrowPDA
+    EscrowPDA -->|"State Transition: Settled"| EscrowPDA
+    EscrowPDA -->|"CPI Release Escrowed Tokens"| TokenProg
+    TokenProg -->|"Settles Tokens"| MakerATA
 
-    Sponsor -->|5. Emergency Pause / Clawback Unvested| Program
-    Program -->|Refunds Unvested Balance| PoolVault
-
-    style Sponsor fill:#1E293B,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC
-    style Student fill:#1E293B,stroke:#4ADE80,stroke-width:2px,color:#F8FAFC
-    style Advisor fill:#1E293B,stroke:#F59E0B,stroke-width:2px,color:#F8FAFC
-    style Program fill:#0F172A,stroke:#A855F7,stroke-width:3px,color:#F8FAFC
-    style EndowmentPool fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC
-    style StreamGrant fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC
-    style MilestonePDA fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC
-    style PoolVault fill:#064E3B,stroke:#10B981,stroke-width:2px,color:#F8FAFC
-    style StudentATA fill:#064E3B,stroke:#10B981,stroke-width:2px,color:#F8FAFC
+    %% Invalidation & Security Paths
+    SigVerify -.->|"Reverts Unauthorized Interceptors"| StreamPDA
+    SigVerify -.->|"Reverts Invalid Clawbacks"| VaultPDA

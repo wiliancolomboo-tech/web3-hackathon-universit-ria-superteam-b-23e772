@@ -1,0 +1,29 @@
+[00:00 - 00:20] HOOK & PROBLEM STATEMENT
+Visual:
+- Screen recording of traditional Brazilian federal scholarship portal showing "Sistema Indisponível" or 90-day bureaucratic payment waitlists.
+- Cut to university research lab with active students.
+Spoken Narrative:
+"In Brazil, university research is the engine of innovation, yet over 100,000 student researchers face payment delays of up to 4 months through legacy banking rails. High inflation eats into budgets, and universities have zero automated tools to safely disburse funds by deliverable. We built BolsaFi: the first decentralized research endowment and milestone-streaming protocol built specifically for Brazilian universities on Solana."
+
+[00:20 - 00:50] CORE ARCHITECTURE & TOKEN ESCROW DEMO
+Visual:
+- Terminal split screen: Anchor CLI localnet test passing on the left; clean React/Next.js dashboard on the right.
+- Sponsor selects: University Innovation Lab -> Input 10,000 BRZ -> 40% Continuous Streaming, 60% across 3 Milestones.
+- Click "Create Grant" -> Phantom Wallet signs -> Instantly confirmed in 400ms.
+Spoken Narrative:
+"Here's how BolsaFi works. A university department or corporate sponsor locks research capital into an isolated PDA Escrow Vault. Using high-speed Solana primitives, BolsaFi splits the allocation into two streams: a continuous, per-second living stipend to cover daily expenses, and a milestone-based reserve locked until technical deliverables are signed off."
+
+[00:50 - 01:25] MILESTONE ATTESTATION & ZERO-LATENCY CLAIMS
+Visual:
+- Switch to Professor/Advisor view. Advisor clicks "Approve Milestone #1 (Code Architecture Deliverable)".
+- Switch to Student researcher view: The balance updates instantly. Student clicks "Claim Available Funds".
+- Show Solana transaction on Solana Explorer: <23,000 Compute Units, 0.000005 SOL fee.
+Spoken Narrative:
+"The professor reviews the research code and signs off on-chain with a single tap. Instantly, the milestone tranche unlocks. The student claims their unlocked yield directly into their Brazilian Real stablecoin wallet. No bank intermediaries, zero paperwork, and full cryptographic transparency for institutional donors."
+
+[01:25 - 02:00] WHY BOLSAFI WINS 1ST PLACE AT SUPERTEAM BRASIL
+Visual:
+- Diagram showing Drex / Pix fiat on-ramp integration and Superteam Brasil University Hubs (USP, Unicamp, UFRJ, UFMG).
+- Full test matrix showing 100% passing automated test suite with edge-case security verification.
+Spoken Narrative:
+"BolsaFi turns every Brazilian university department into a high-performance Web3 endowment. It is gas-optimized, secure against reentrancy and spoofing, and built to interface directly with the future of Brazilian instant payments like Drex and Pix via Solana stablecoins. This is how we onboard the next 10,000 elite Brazilian builders and researchers to Solana. Muito obrigado!"

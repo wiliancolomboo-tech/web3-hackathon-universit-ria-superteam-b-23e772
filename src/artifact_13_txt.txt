@@ -1,0 +1,21 @@
++-----------------------------+-----------------------------+----------------------------------------------+
+| Attack Vector / Threat      | Solana Vulnerability Type   | BolsaFi Protocol Defense Mechanism           |
++-----------------------------+-----------------------------+----------------------------------------------+
+| PDA Seed Collision / Spoof  | Missing Canonical Seeds     | Seeds enforce [b"grant_state", sponsor, ID]. |
+|                             |                             | Bump stored and validated canonically.       |
++-----------------------------+-----------------------------+----------------------------------------------+
+| Fake Token Vault Drain      | Insecure Token CPI          | Escrow vault PDA is owned by Anchor program; |
+|                             |                             | Mint & token program ID strictly checked.    |
++-----------------------------+-----------------------------+----------------------------------------------+
+| Math Underflow / Overflow   | Integer Boundary Overflow   | All calculations use Rust checked_math;      |
+|                             |                             | cast to u128 before multiplications.         |
++-----------------------------+-----------------------------+----------------------------------------------+
+| Double Spend of Milestones  | Logic & State Sync Error    | Fixed-size boolean array [bool; 8];          |
+|                             |                             | duplicate calls abort immediately.           |
++-----------------------------+-----------------------------+----------------------------------------------+
+| Griefing / Fund Trapping    | Unresponsive Student        | Configurable expiration duration allows      |
+|                             |                             | sponsor recovery after terminal timestamp.   |
++-----------------------------+-----------------------------+----------------------------------------------+
+| Frontrunning Claims         | MEV & Timing Exploit        | Deterministic linear formula based on        |
+|                             |                             | Solana Clock sysvar; zero slippage variance. |
++-----------------------------+-----------------------------+----------------------------------------------+

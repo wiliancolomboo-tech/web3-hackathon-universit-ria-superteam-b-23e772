@@ -1,0 +1,39 @@
++-----------+-----------------------------------------------+-----------------------------------------+
+| Timestamp | Visual Screen Layout                          | Spoken Narrative Audio (Portuguese/Eng) |
++-----------+-----------------------------------------------+-----------------------------------------+
+| 00:00-    | Split-screen: Dropout statistics in Brazil    | "Olá, jurados da Superteam Brasil! Mais |
+| 00:20     | (MEC/INEP) vs. BolsaFi Terminal running.      | de 30% dos universitários no Brasil     |
+|           |                                               | abandonam a faculdade não por falta de  |
+|           |                                               | esforço, mas por falta de custeio diário|
+|           |                                               | para transporte e alimentação. Conheçam |
+|           |                                               | o BolsaFi: o primeiro protocolo de mi-  |
+|           |                                               | cro-bolsas de rendimento contínuo       |
+|           |                                               | na Solana."                             |
++-----------+-----------------------------------------------+-----------------------------------------+
+| 00:20-    | Terminal: anchor test execution showing 6     | "Em vez de burocracias bancárias de     |
+| 00:50     | passing tests. Browser: UI showing live       | 30 dias, empresas e alumni financiam    |
+|           | streaming balance in BRLA stablecoin.         | pools de doação em BRLA ou USDC.        |
+|           |                                               | Usando ray-math de precisão 1e12, os    |
+|           |                                               | alunos sacam bolsas segundo a segundo,  |
+|           |                                               | consumindo menos de 17.000 Compute      |
+|           |                                               | Units por saque!"                       |
++-----------+-----------------------------------------------+-----------------------------------------+
+| 00:50-    | Oracle signing mock: MEC Digital Diploma hash | "Mas como garantimos o mérito? Integramos|
+| 01:20     | verifying GPA > 7.0. Live UI flips to Active. | um sistema de atestação oracular. A     |
+|           | Fast-forward 5 seconds: Student balance       | universidade assina o hash do histórico |
+|           | increments on Phantom wallet.                 | acadêmico. Se o aluno trancar o curso,  |
+|           |                                               | o oráculo pausa o fluxo, e o sponsor    |
+|           |                                               | tem garantia de clawback do capital não |
+|           |                                               | utilizado. Zero desperdício de capital."|
++-----------+-----------------------------------------------+-----------------------------------------+
+| 01:20-    | Diagram of Solana Pay integration with campus | "Com taxas sub-centavo da Solana, o     |
+| 01:45     | cafeteria (bandejão) reading student stream.  | universitário usa Solana Pay diretamente|
+|           |                                               | no bandejão universitário sem converter |
+|           |                                               | para fiat intermediário."               |
++-----------+-----------------------------------------------+-----------------------------------------+
+| 01:45-    | Summary slide: Built with Anchor, Token-2022, | "BolsaFi une DeFi, inclusão social e   |
+| 02:00     | 100% test coverage, ready for Mainnet.        | eficiência máxima de capital para       |
+|           | Call-to-action & GitHub repository link.      | transformar a educação no Brasil.       |
+|           |                                               | Construído para vencer na Superteam!    |
+|           |                                               | Obrigado!"                              |
++-----------+-----------------------------------------------+-----------------------------------------+

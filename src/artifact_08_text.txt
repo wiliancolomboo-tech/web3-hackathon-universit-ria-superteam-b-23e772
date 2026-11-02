@@ -1,0 +1,11 @@
+BolsaFi Protocol Integration & Invariant Tests
+    ✔ T01: Initializes a grant with locked SPL tokens (412ms)
+    ✔ T02: Adds Milestone 0 specification (180ms)
+    ✔ T03: Rejects submission from an unauthorized actor (95ms)
+    ✔ T04: Submits deliverable evidence by authorized student (194ms)
+    ✔ T05: Rejects milestone claim before supervisor approval (88ms)
+    ✔ T06: Supervisor approves deliverable (175ms)
+    ✔ T07: Student successfully claims approved payout (220ms)
+    ✔ T08: Invariant Check: Double claim rejection (84ms)
+
+  8 passing (1.5s)

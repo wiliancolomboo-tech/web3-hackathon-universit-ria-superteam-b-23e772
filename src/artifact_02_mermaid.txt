@@ -1,0 +1,64 @@
+flowchart TD
+    subgraph ClientLayer [Client & Institutional Integrations]
+        Sponsor[Sponsor / Foundation Authority]
+        Student[Student Researcher Beneficiary]
+        Verifier[Academic Supervisor / Faculty Verifier]
+    end
+
+    subgraph ProgramBoundary [BolsaFi Program: bolsa_fi_engine]
+        direction TB
+
+        subgraph InstructionHandlers [Instruction Dispatcher]
+            IX_Init[initialize_pool]
+            IX_Stream[create_stream]
+            IX_Claim[claim_accrued]
+            IX_Milestone[approve_milestone]
+            IX_Clawback[clawback_unvested]
+        end
+
+        subgraph AccountStateSpace [PDA Storage & State Machine]
+            PoolState[GlobalPool PDA: b'pool', sponsor_pubkey]
+            StreamState[StreamGrant PDA: b'grant', pool_pda, grant_id]
+            MilestoneState[Milestone PDA: b'milestone', grant_pda, milestone_index]
+        end
+
+        subgraph EscrowVaults [Token PDAs & Token Program]
+            VaultAuthority[VaultAuthority PDA: b'authority', grant_pda]
+            TokenVault[Stream Token Vault ATA owned by VaultAuthority]
+            SPLProgram[SPL Token Program / Token-2022]
+        end
+    end
+
+    subgraph SecurityGuards [Program Security Invariants]
+        Guard1{Signer == Sponsor?}
+        Guard2{Clock::get::unix_timestamp >= StartTime}
+        Guard3{Unclaimed > 0 & Math No-Overflow}
+        Guard4{Signer == Verifier?}
+    end
+
+    %% Flow connections
+    Sponsor -->|1. Init Pool & Deposit Collateral| IX_Init
+    IX_Init -->|Derives & Initializes| PoolState
+    
+    Sponsor -->|2. Register Scholar & Lock Tokens| IX_Stream
+    IX_Stream --> Guard1
+    Guard1 -->|Yes| StreamState
+    IX_Stream -->|CPI: Transfer to Vault| SPLProgram
+    SPLProgram -->|Credit| TokenVault
+
+    Student -->|3. Claim Streaming Yield| IX_Claim
+    IX_Claim --> Guard2
+    Guard2 --> Guard3
+    Guard3 -->|Calculate Linear Accrual| StreamState
+    IX_Claim -->|CPI: Signed by VaultAuthority| SPLProgram
+    SPLProgram -->|Debit Vault -> Transfer to Student ATA| Student
+
+    Verifier -->|4. Sign Research Deliverable| IX_Milestone
+    IX_Milestone --> Guard4
+    Guard4 -->|Flag: is_approved = true| MilestoneState
+    IX_Milestone -->|CPI: Release Milestone Tranche| SPLProgram
+    SPLProgram -->|Debit Vault -> Transfer to Student ATA| Student
+
+    Sponsor -->|5. Revoke Inactive Grant| IX_Clawback
+    IX_Clawback -->|Calculate Unvested Tokens| StreamState
+    IX_Clawback -->|CPI: Return Capital to Sponsor ATA| SPLProgram

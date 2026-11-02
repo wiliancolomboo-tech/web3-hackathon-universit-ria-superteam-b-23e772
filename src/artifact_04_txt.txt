@@ -1,0 +1,23 @@
++----------------------------------------------------------------------------------------------------+
+|                                    SECURITY DEFENSE MATRIX                                         |
++--------------------------+------------------------------------+------------------------------------+
+| Threat Vector            | Vulnerability Classification       | Mitigation Mechanism               |
++--------------------------+------------------------------------+------------------------------------+
+| Fake Validator Sign-off  | Spoofed Signer / Privilege Breach  | `has_one = validator` Anchor check |
+|                          |                                    | matching the on-chain stored key.  |
++--------------------------+------------------------------------+------------------------------------+
+| Arbitrary Token Drain    | Reentrancy / Double-Claim          | State updated prior to CPI.        |
+|                          |                                    | `total_claimed` checked arithmetic.|
++--------------------------+------------------------------------+------------------------------------+
+| PDA Spoofing             | Seed Collision / Vault Tampering   | Seeds canonicalized:               |
+|                          |                                    | `['vault_auth', grant_state.key()]`|
++--------------------------+------------------------------------+------------------------------------+
+| Clock Manipulation       | Sysvar Tampering                   | Solana `Clock::get()?.unix_        |
+|                          |                                    | timestamp` monotonic floor tests.  |
++--------------------------+------------------------------------+------------------------------------+
+| Precision Exploits       | Integer Overflow / Truncation      | `checked_mul` / `checked_div` via  |
+|                          |                                    | `u128` intermediates; 10,000 BPS.  |
++--------------------------+------------------------------------+------------------------------------+
+| Spl Token Substitution   | Type Confusion Attack              | `mint` and `vault` validated via   |
+|                          |                                    | `InterfaceAccount` checks.         |
++--------------------------+------------------------------------+------------------------------------+

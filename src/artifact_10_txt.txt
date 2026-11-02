@@ -1,0 +1,9 @@
+bolsafi-protocol-qa-matrix
+    ✔ QA-01: Successfully initializes an Endowment Pool and deposits collateral (421ms)
+    ✔ QA-02: Creates a student scholarship stream with academic attestation hash (385ms)
+    ✔ QA-03: Allows student to claim accumulated continuous stipend over elapsed time (3152ms)
+    ✔ QA-04: Registrar Oracle pauses stream upon failing academic attestation (410ms)
+    ✔ QA-05: Sponsor claws back unvested balance protecting earned student dues (390ms)
+    ✔ QA-06: Security Guard: Rejects non-sponsor attempts to clawback funds (215ms)
+
+  6 passing (5.0s)

@@ -1,0 +1,52 @@
+{
+  "deliverable_id": "superteam_2f1f2723e772",
+  "opportunity_id": "st-4b0a5324-4693-4771-8f41-e8b6ea646413",
+  "platform": "SuperteamEarn",
+  "title": "Hackathon Universitária Superteam Brasil",
+  "url": "https://earn.superteam.fun/listings/bounty/hackathon-universitaria-superteam-brasil-1",
+  "budget": "3,000 USDG",
+  "prize_amount": 3000.0,
+  "ecosystem": "Solana",
+  "github_url": "https://github.com/wiliancolomboo-tech/web3-hackathon-universit-ria-superteam-b-23e772",
+  "status": "ready_for_submission",
+  "validation_reports": [
+    {
+      "file": "artifact_01_mermaid.txt",
+      "language": "mermaid",
+      "valid": true,
+      "error": null
+    },
+    {
+      "file": "artifact_02_rust.rs",
+      "language": "rust",
+      "valid": true,
+      "error": null
+    },
+    {
+      "file": "artifact_03_typescript.ts",
+      "language": "typescript",
+      "valid": true,
+      "error": null
+    },
+    {
+      "file": "artifact_04_bash.sh",
+      "language": "bash",
+      "valid": true,
+      "error": null
+    },
+    {
+      "file": "artifact_05_bash.sh",
+      "language": "bash",
+      "valid": true,
+      "error": null
+    },
+    {
+      "file": "artifact_06_bash.sh",
+      "language": "bash",
+      "valid": true,
+      "error": null
+    }
+  ],
+  "git_initialized": true,
+  "created_at": "2026-09-08 02:59:29"
+}

@@ -1,0 +1,24 @@
+[0:00 - 0:20] THE HOOK & REGIONAL PROBLEM
+(Visual: Screen share of news headlines highlighting delayed CAPES/CNPq student scholarships, transitioning to BolsaFi's command line dashboard).
+Narrator:
+"Olá Superteam Brasil! Brazil is home to Latin America's top engineering talent, yet over 80,000 university researchers face delayed stipends, opaque bureaucracy, and zero real-time accountability. Meanwhile, alumni associations and global Web3 foundations struggle to disburse micro-endowments safely. We built BolsaFi: the first continuous micro-endowment and milestone-streaming protocol built natively for Brazilian universities on Solana."
+
+[0:20 - 0:50] ARCHITECTURE & PROTOCOL IN ACTION
+(Visual: Split screen: VS Code running Anchor tests, next to Solana Explorer inspection showing PDA vault interactions and sub-second token movement).
+Narrator:
+"Under the hood, BolsaFi replaces bureaucratic grants with Solana Program Derived Addresses. Donors deposit BRZ or USDC into an institutional Endowment Pool PDA. Grants stream continuously down to the micro-second using zero-loss checked fixed-point math, consuming under 30,000 Compute Units. But here is the breakthrough: dynamic milestone tranches."
+
+[0:50 - 1:20] ON-CHAIN QUORUM & MILESTONE VERIFICATION
+(Visual: Evaluator terminal window issuing `attest_milestone` transaction; the UI shows Milestone 1 turning green as bitwise votes aggregate).
+Narrator:
+"Unlike traditional linear streams, research requires rigor. With BolsaFi, academic advisors and departmental committees form an on-chain evaluator quorum. Students commit their thesis, Git commits, or laboratory data as a SHA-256 hash. Evaluators sign an on-chain attestation. The moment the threshold is achieved, the locked milestone tranche unlocks instantly alongside the linear baseline."
+
+[1:20 - 1:45] FRAUD MITIGATION & CAPITAL GUARANTEES
+(Visual: Emergency revocation executed; unvested principal instantly returned to the donor treasury).
+Narrator:
+"Capital safety is paramount. If a student defects or academic misconduct occurs, the donor authority can trigger `emergency_revoke`. BolsaFi calculates exact unvested principal to the second, sweeps it back to the vault, and freezes the stream—guaranteeing complete downside protection for university endowments."
+
+[1:45 - 2:00] WHY BOLSAFI WINS 1ST PLACE
+(Visual: BolsaFi deployed on Devnet, showing terminal summary, test metrics, and Superteam Brasil logo).
+Narrator:
+"BolsaFi isn't just a hackathon toy; it is real-world Latin American public goods infrastructure. Built with Anchor 0.30, sub-cent transaction fees, and bank-grade PDA security. Let’s fund the future of Brazilian science on Solana. Muito obrigado!"

@@ -1,0 +1,21 @@
++--------------------------+-----------------------------+-------------------------------------------------------------+
+| Threat Vector            | Severity                    | BolsaFi Protocol Defense Mechanism                         |
++--------------------------+-----------------------------+-------------------------------------------------------------+
+| Reentrancy via CPI       | Critical (CVSS 9.8)         | Checks-Effects-Interactions: `milestone.status = Claimed`   |
+|                          |                             | executed before external SPL Token CPI invocation.           |
++--------------------------+-----------------------------+-------------------------------------------------------------+
+| Seed Collision /         | High (CVSS 8.5)             | Canonical bumps stored on Grant & Milestone PDAs. Seeds are  |
+| Arbitrary PDA Spoofing   |                             | strictly tied to `[b"grant", funder, grant_id]`.            |
++--------------------------+-----------------------------+-------------------------------------------------------------+
+| Fake Token Account /     | High (CVSS 8.2)             | Anchor `token::mint = mint` & `token::authority = vault`     |
+| Arbitrary Mint Injection |                             | structural constraints verified against registered grant.   |
++--------------------------+-----------------------------+-------------------------------------------------------------+
+| Unauthorized Dean /      | Critical (CVSS 9.1)         | Dual-authorization model: Supervisor public key locked into |
+| Beneficiary Impersonation|                             | PDA; state transitions require valid cryptographic sig.      |
++--------------------------+-----------------------------+-------------------------------------------------------------+
+| Arithmetic Overflow /    | Medium (CVSS 6.5)           | Strict usage of Rust `checked_add` / `checked_sub` causing   |
+| Precision Loss           |                             | deterministic panics on illegal balance boundaries.         |
++--------------------------+-----------------------------+-------------------------------------------------------------+
+| Indefinite Lockup of     | Medium (CVSS 5.9)           | Inactivity deadline checkpoint allowing institutional       |
+| Abandoned Grants         |                             | clawback strictly when $t_{now} > t_{deadline}$.            |
++--------------------------+-----------------------------+-------------------------------------------------------------+

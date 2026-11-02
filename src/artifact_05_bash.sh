@@ -1,9 +1,14 @@
-# Clone and enter directory
-git clone https://github.com/superteam-brasil/bolsafi-protocol.git
-cd bolsafi-protocol
+# 1. Clone the repository and navigate to root directory
+cd pactobrl
 
-# Fetch dependencies and compile Anchor program
+# 2. Install Node dependencies
+yarn install
+
+# 3. Synchronize program keys (generates deterministic target keypair)
+anchor keys sync
+
+# 4. Build the Anchor Solana program
 anchor build
 
-# Sync Program ID across lib.rs and Anchor.toml
-anchor keys sync
+# 5. Run the complete end-to-end integration and security test suite on localnet
+anchor test

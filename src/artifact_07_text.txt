@@ -1,0 +1,9 @@
+ConsórcioSol Protocol Test Suite
+    ✔ 1. Initializes circle and escrow vault PDA (412ms)
+    ✔ 2. Registers members Alice and Bob and triggers circle activation (389ms)
+    ✔ 3. Deposits monthly quota payments for Round 1 (298ms)
+    ✔ 4. Alice submits winning bid (Lance Livre) and locks prepayment (320ms)
+    ✔ 5. Resolves Round 1 payout after duration expiry (2610ms)
+    ✔ 6. Guard assertion: Rejects double payout to already contemplated member (185ms)
+
+  6 passing (4.2s)

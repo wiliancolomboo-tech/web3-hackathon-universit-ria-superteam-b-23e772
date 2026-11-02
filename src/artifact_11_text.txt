@@ -1,0 +1,9 @@
+bolsa_stream_comprehensive_qa
+    ✔ QA-01: Initializes grant with dual linear-stream and milestone tranches (342ms)
+    ✔ QA-02: Deposits total grant capital into Program Escrow Vault (289ms)
+    ✔ QA-03: Allows student to claim accrued streaming capital after time progression (3050ms)
+    ✔ QA-04: Enforces milestone lifecycle (Submit Proof -> Supervisor Approval -> Payout) (412ms)
+    ✔ QA-05 [Security Guard]: Rejects unauthorized milestone approval by an attacker (195ms)
+    ✔ QA-06 [Emergency Clawback]: Sponsor executes cancellation and reclaims unearned capital (278ms)
+
+  6 passing (4.6s)

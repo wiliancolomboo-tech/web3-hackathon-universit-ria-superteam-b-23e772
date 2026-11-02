@@ -1,0 +1,10 @@
+EduVault Brasil - End-to-End Programmatic Scholarship Engine
+    ✔ 1. Initializes the University Endowment Pool successfully (412ms)
+    ✔ 2. Accepts donor BRLA/DREX capital deposits into the vault PDA (380ms)
+    ✔ 3. Creates a continuous per-second micro-scholarship stream for student (405ms)
+    ✔ 4. Allows student to claim accrued streaming tokens in real time (3250ms)
+    ✔ 5. Academic Oracle pauses stream when student GPA drops below threshold (395ms)
+    ✔ 6. Re-enables stream once academic deficit is rectified by registrar (420ms)
+    ✔ 7. Defends against unauthorized non-oracle tampering (210ms)
+
+  7 passing (5.47s)

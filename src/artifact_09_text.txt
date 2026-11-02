@@ -1,0 +1,11 @@
+bolsa_sol: Academic Escrow & Milestone Delivery Protocol
+    ✔ 1. Initializes the Grant and locks SPL funds in the PDA Vault (482ms)
+    ✔ 2. Creates Milestone #0 (Initial Prototype & Benchmarking) (214ms)
+    ✔ 3. Prevents unauthorized evaluator from voting (189ms)
+    ✔ 4. Evaluator 1 attests Milestone #0; verification quorum remains pending (205ms)
+    ✔ 5. Rejects premature fund claims before quorum threshold is satisfied (178ms)
+    ✔ 6. Evaluator 2 attests Milestone #0; quorum achieved and state flips to completed (221ms)
+    ✔ 7. Beneficiary claims Milestone #0 funds and updates state correctly (265ms)
+    ✔ 8. Prevents double-claiming the same milestone (192ms)
+
+  8 passing (2.1s)

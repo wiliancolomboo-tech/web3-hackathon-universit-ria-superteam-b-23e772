@@ -1,0 +1,10 @@
+bolsastream/
+├── Anchor.toml
+├── Cargo.toml
+├── programs/
+│   └── bolsastream/
+│       ├── Cargo.toml
+│       └── src/
+│           └── lib.rs
+└── tests/
+    └── bolsastream.ts

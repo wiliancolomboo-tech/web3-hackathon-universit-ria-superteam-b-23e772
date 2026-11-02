@@ -1,237 +1,226 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
-declare_id!("Bo1saFi1111111111111111111111111111111111111");
+declare_id!("PactoBRL11111111111111111111111111111111111");
+
+pub const STREAM_SEED: &[u8] = b"stream";
+pub const VAULT_SEED: &[u8] = b"vault";
+pub const ESCROW_SEED: &[u8] = b"pix_escrow";
 
 #[program]
-pub mod bolsafi {
+pub mod pactobrl {
     use super::*;
 
-    /// Initializes a programmatic endowment pool for a university department or grant funder.
-    pub fn initialize_pool(
-        ctx: Context<InitializePool>,
-        pool_id: u64,
-        bump: u8,
-    ) -> Result<()> {
-        let pool = &mut ctx.accounts.pool;
-        pool.authority = ctx.accounts.authority.key();
-        pool.token_mint = ctx.accounts.token_mint.key();
-        pool.vault = ctx.accounts.vault.key();
-        pool.pool_id = pool_id;
-        pool.total_deposited = 0;
-        pool.total_allocated = 0;
-        pool.total_claimed = 0;
-        pool.bump = bump;
-        pool.paused = false;
-
-        emit!(PoolInitialized {
-            pool: pool.key(),
-            authority: pool.authority,
-            token_mint: pool.token_mint,
-            pool_id,
-        });
-
-        Ok(())
-    }
-
-    /// Deposits funds into the endowment pool escrow.
-    pub fn deposit_funds(ctx: Context<DepositFunds>, amount: u64) -> Result<()> {
-        require!(amount > 0, BolsaFiError::ZeroAmountDeposit);
-
-        // Transfer funds from sponsor ATA to the Pool Escrow Vault
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.sponsor_token_account.to_account_info(),
-            to: ctx.accounts.vault.to_account_info(),
-            authority: ctx.accounts.sponsor.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, amount)?;
-
-        let pool = &mut ctx.accounts.pool;
-        pool.total_deposited = pool
-            .total_deposited
-            .checked_add(amount)
-            .ok_or(BolsaFiError::MathOverflow)?;
-
-        emit!(FundsDeposited {
-            pool: pool.key(),
-            amount,
-            new_total: pool.total_deposited,
-        });
-
-        Ok(())
-    }
-
-    /// Opens a continuous grant stream for a student researcher with an optional milestone bonus.
-    pub fn create_stream_grant(
-        ctx: Context<CreateStreamGrant>,
-        rate_per_second: u64,
-        cliff_seconds: i64,
+    /// Initializes a linear stipend grant stream from a grantor (funder) to a student.
+    pub fn create_stream(
+        ctx: Context<CreateStream>,
+        stream_id: u64,
+        total_amount: u64,
         duration_seconds: i64,
-        milestone_bonus: u64,
-        bump: u8,
     ) -> Result<()> {
-        require!(rate_per_second > 0, BolsaFiError::InvalidStreamingRate);
-        require!(duration_seconds > 0, BolsaFiError::InvalidDuration);
+        require!(total_amount > 0, PactoError::InvalidDepositAmount);
+        require!(duration_seconds > 0, PactoError::InvalidDuration);
 
         let clock = Clock::get()?;
-        let current_time = clock.unix_timestamp;
-
-        let total_linear_grant = rate_per_second
-            .checked_mul(duration_seconds as u64)
-            .ok_or(BolsaFiError::MathOverflow)?;
-        let total_grant = total_linear_grant
-            .checked_add(milestone_bonus)
-            .ok_or(BolsaFiError::MathOverflow)?;
-
-        let pool = &mut ctx.accounts.pool;
-        let available = pool
-            .total_deposited
-            .checked_sub(pool.total_allocated)
-            .ok_or(BolsaFiError::InsufficientPoolLiquidity)?;
-        require!(available >= total_grant, BolsaFiError::InsufficientPoolLiquidity);
-
-        pool.total_allocated = pool
-            .total_allocated
-            .checked_add(total_grant)
-            .ok_or(BolsaFiError::MathOverflow)?;
-
-        let grant = &mut ctx.accounts.grant;
-        grant.pool = pool.key();
-        grant.student = ctx.accounts.student.key();
-        grant.advisor = ctx.accounts.advisor.key();
-        grant.rate_per_second = rate_per_second;
-        grant.start_time = current_time;
-        grant.cliff_time = current_time
-            .checked_add(cliff_seconds)
-            .ok_or(BolsaFiError::MathOverflow)?;
-        grant.end_time = current_time
+        let start_time = clock.unix_timestamp;
+        let end_time = start_time
             .checked_add(duration_seconds)
-            .ok_or(BolsaFiError::MathOverflow)?;
-        grant.last_claimed_timestamp = current_time;
-        grant.total_funded = total_grant;
-        grant.total_claimed = 0;
-        grant.milestone_bonus = milestone_bonus;
-        grant.milestone_unlocked = false;
-        grant.is_paused = false;
-        grant.bump = bump;
+            .ok_or(PactoError::MathOverflow)?;
 
-        emit!(GrantCreated {
-            grant: grant.key(),
-            student: grant.student,
-            total_funded: total_grant,
-            end_time: grant.end_time,
+        let stream = &mut ctx.accounts.stream_account;
+        stream.funder = ctx.accounts.funder.key();
+        stream.recipient = ctx.accounts.recipient.key();
+        stream.mint = ctx.accounts.mint.key();
+        stream.stream_id = stream_id;
+        stream.total_amount = total_amount;
+        stream.claimed_amount = 0;
+        stream.start_time = start_time;
+        stream.end_time = end_time;
+        stream.bump = ctx.bumps.stream_account;
+        stream.vault_bump = ctx.bumps.vault_account;
+        stream.is_paused = false;
+
+        // Transfer funds from funder to PDA-controlled vault
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.funder_token_account.to_account_info(),
+            to: ctx.accounts.vault_account.to_account_info(),
+            authority: ctx.accounts.funder.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+        token::transfer(cpi_ctx, total_amount)?;
+
+        emit!(StreamCreatedEvent {
+            funder: stream.funder,
+            recipient: stream.recipient,
+            stream_id,
+            total_amount,
+            start_time,
+            end_time,
         });
 
         Ok(())
     }
 
-    /// Verifies academic progress (e.g., Thesis Chapter approval, GitHub PR, research paper acceptance).
-    pub fn attest_milestone(ctx: Context<AttestMilestone>) -> Result<()> {
-        let grant = &mut ctx.accounts.grant;
-        require!(!grant.milestone_unlocked, BolsaFiError::MilestoneAlreadyAttested);
-        require!(!grant.is_paused, BolsaFiError::GrantPaused);
-
-        grant.milestone_unlocked = true;
-
-        emit!(MilestoneAttested {
-            grant: grant.key(),
-            advisor: ctx.accounts.advisor.key(),
-            bonus_unlocked: grant.milestone_bonus,
-        });
-
-        Ok(())
-    }
-
-    /// Student claims available streamed tokens. Can be called at any second.
-    pub fn claim_stream(ctx: Context<ClaimStream>) -> Result<()> {
-        let grant = &mut ctx.accounts.grant;
-        require!(!grant.is_paused, BolsaFiError::GrantPaused);
-
+    /// Allows the student recipient to atomically withdraw whatever has vested linearly.
+    pub fn withdraw_stream_accrual(ctx: Context<WithdrawStream>) -> Result<()> {
+        let stream = &mut ctx.accounts.stream_account;
         let clock = Clock::get()?;
+
+        require!(!stream.is_paused, PactoError::StreamIsPaused);
+
         let current_time = clock.unix_timestamp;
+        let vested_amount = if current_time >= stream.end_time {
+            stream.total_amount
+        } else if current_time <= stream.start_time {
+            0
+        } else {
+            let elapsed = current_time
+                .checked_sub(stream.start_time)
+                .ok_or(PactoError::MathOverflow)?;
+            let total_duration = stream
+                .end_time
+                .checked_sub(stream.start_time)
+                .ok_or(PactoError::MathOverflow)?;
 
-        require!(current_time >= grant.cliff_time, BolsaFiError::CliffNotReached);
+            let accrued = (stream.total_amount as u128)
+                .checked_mul(elapsed as u128)
+                .ok_or(PactoError::MathOverflow)?
+                .checked_div(total_duration as u128)
+                .ok_or(PactoError::MathOverflow)? as u64;
 
-        let calculation_time = current_time.min(grant.end_time);
-        let active_duration = calculation_time
-            .checked_sub(grant.last_claimed_timestamp)
-            .ok_or(BolsaFiError::MathOverflow)?;
+            accrued
+        };
 
-        if active_duration <= 0 && !grant.milestone_unlocked {
-            return Err(BolsaFiError::NoClaimableTokens.into());
-        }
+        let claimable = vested_amount
+            .checked_sub(stream.claimed_amount)
+            .ok_or(PactoError::NothingToClaim)?;
 
-        let mut claimable = (active_duration as u64)
-            .checked_mul(grant.rate_per_second)
-            .ok_or(BolsaFiError::MathOverflow)?;
+        require!(claimable > 0, PactoError::NothingToClaim);
 
-        // If milestone has been validated by advisor and not yet paid out, add bonus
-        if grant.milestone_unlocked && grant.milestone_bonus > 0 {
-            claimable = claimable
-                .checked_add(grant.milestone_bonus)
-                .ok_or(BolsaFiError::MathOverflow)?;
-            // Set milestone bonus to 0 to prevent double claiming
-            grant.milestone_bonus = 0;
-        }
-
-        require!(claimable > 0, BolsaFiError::NoClaimableTokens);
-
-        // Security assertion: cannot exceed total funded
-        let projected_total = grant
-            .total_claimed
+        stream.claimed_amount = stream
+            .claimed_amount
             .checked_add(claimable)
-            .ok_or(BolsaFiError::MathOverflow)?;
-        require!(projected_total <= grant.total_funded, BolsaFiError::ExceedsAllocatedTotal);
+            .ok_or(PactoError::MathOverflow)?;
 
-        grant.last_claimed_timestamp = calculation_time;
-        grant.total_claimed = projected_total;
+        // Execute CPI from PDA vault authority
+        let funder_key = stream.funder;
+        let recipient_key = stream.recipient;
+        let id_bytes = stream.stream_id.to_le_bytes();
 
-        let pool = &mut ctx.accounts.pool;
-        pool.total_claimed = pool
-            .total_claimed
-            .checked_add(claimable)
-            .ok_or(BolsaFiError::MathOverflow)?;
-
-        // Transfer funds using PDA seeds of the pool
-        let pool_id_bytes = pool.pool_id.to_le_bytes();
-        let authority_key = pool.authority.key();
-        let seeds = &[
-            b"endowment",
-            authority_key.as_ref(),
-            pool_id_bytes.as_ref(),
-            &[pool.bump],
-        ];
-        let signer_seeds = &[&seeds[..]];
+        let vault_seeds: &[&[&[u8]]] = &[&[
+            VAULT_SEED,
+            stream.to_account_info().key.as_ref(),
+            &[stream.vault_bump],
+        ]];
 
         let cpi_accounts = Transfer {
-            from: ctx.accounts.vault.to_account_info(),
-            to: ctx.accounts.student_token_account.to_account_info(),
-            authority: pool.to_account_info(),
+            from: ctx.accounts.vault_account.to_account_info(),
+            to: ctx.accounts.recipient_token_account.to_account_info(),
+            authority: ctx.accounts.vault_account.to_account_info(),
         };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            cpi_accounts,
+            vault_seeds,
+        );
         token::transfer(cpi_ctx, claimable)?;
 
-        emit!(TokensClaimed {
-            grant: grant.key(),
-            student: grant.student,
+        emit!(AccrualClaimedEvent {
+            stream_id: stream.stream_id,
+            recipient: recipient_key,
             amount: claimable,
-            total_claimed: grant.total_claimed,
+            remaining_unvested: stream.total_amount.saturating_sub(stream.claimed_amount),
         });
 
         Ok(())
     }
 
-    /// Emergency pause or unpause in case of student academic withdrawal or institutional audit.
-    pub fn toggle_pause_grant(ctx: Context<TogglePauseGrant>) -> Result<()> {
-        let grant = &mut ctx.accounts.grant;
-        grant.is_paused = !grant.is_paused;
+    /// Initializes a P2P atomic off-ramp escrow backed by SPL tokens.
+    pub fn open_pix_escrow(
+        ctx: Context<OpenPixEscrow>,
+        escrow_id: u64,
+        amount: u64,
+        pix_payment_hash: [u8; 32],
+        timelock_slots: u64,
+    ) -> Result<()> {
+        require!(amount > 0, PactoError::InvalidDepositAmount);
 
-        emit!(GrantPauseToggled {
-            grant: grant.key(),
-            is_paused: grant.is_paused,
+        let escrow = &mut ctx.accounts.pix_escrow;
+        escrow.maker = ctx.accounts.maker.key();
+        escrow.student = ctx.accounts.student.key();
+        escrow.mint = ctx.accounts.mint.key();
+        escrow.escrow_id = escrow_id;
+        escrow.amount = amount;
+        escrow.pix_payment_hash = pix_payment_hash;
+        escrow.expiry_slot = Clock::get()?
+            .slot
+            .checked_add(timelock_slots)
+            .ok_or(PactoError::MathOverflow)?;
+        escrow.status = EscrowStatus::AwaitingFiatTransfer;
+        escrow.bump = ctx.bumps.pix_escrow;
+
+        // Student deposits their claim into escrow
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.student_token_account.to_account_info(),
+            to: ctx.accounts.escrow_token_vault.to_account_info(),
+            authority: ctx.accounts.student.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+        token::transfer(cpi_ctx, amount)?;
+
+        Ok(())
+    }
+
+    /// Releases escrowed SPL tokens to the liquidity maker upon confirmed PIX End-to-End delivery.
+    pub fn release_pix_escrow(
+        ctx: Context<ReleasePixEscrow>,
+        pix_preimage: [u8; 32],
+    ) -> Result<()> {
+        let escrow = &mut ctx.accounts.pix_escrow;
+        require!(
+            escrow.status == EscrowStatus::AwaitingFiatTransfer,
+            PactoError::InvalidEscrowState
+        );
+
+        // Verify SHA-256 hash preimage of the PIX EndToEndId receipt
+        let computed_hash = anchor_lang::solana_program::hash::hash(&pix_preimage);
+        require!(
+            computed_hash.to_bytes() == escrow.pix_payment_hash,
+            PactoError::InvalidPreimageHash
+        );
+
+        escrow.status = EscrowStatus::Completed;
+
+        let maker_key = escrow.maker;
+        let student_key = escrow.student;
+        let id_bytes = escrow.escrow_id.to_le_bytes();
+        let bump_slice = &[escrow.bump];
+
+        let escrow_seeds: &[&[&[u8]]] = &[&[
+            ESCROW_SEED,
+            maker_key.as_ref(),
+            student_key.as_ref(),
+            id_bytes.as_ref(),
+            bump_slice,
+        ]];
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.escrow_token_vault.to_account_info(),
+            to: ctx.accounts.maker_token_account.to_account_info(),
+            authority: ctx.accounts.pix_escrow.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            cpi_accounts,
+            escrow_seeds,
+        );
+        token::transfer(cpi_ctx, escrow.amount)?;
+
+        emit!(PixEscrowSettledEvent {
+            escrow_id: escrow.escrow_id,
+            maker: maker_key,
+            student: student_key,
+            amount: escrow.amount,
         });
 
         Ok(())
@@ -243,272 +232,245 @@ pub mod bolsafi {
 // -----------------------------------------------------------------------------
 
 #[derive(Accounts)]
-#[instruction(pool_id: u64, bump: u8)]
-pub struct InitializePool<'info> {
-    #[account(
-        init,
-        payer = authority,
-        space = 8 + EndowmentPool::LEN,
-        seeds = [b"endowment", authority.key().as_ref(), &pool_id.to_le_bytes()],
-        bump
-    )]
-    pub pool: Account<'info, EndowmentPool>,
-
-    pub token_mint: Account<'info, Mint>,
-
-    #[account(
-        init,
-        payer = authority,
-        token::mint = token_mint,
-        token::authority = pool,
-        seeds = [b"vault", pool.key().as_ref()],
-        bump
-    )]
-    pub vault: Account<'info, TokenAccount>,
-
+#[instruction(stream_id: u64)]
+pub摸struct CreateStream<'info> {
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub funder: Signer<'info>,
 
-    pub system_program: Program<'info, System>,
+    /// CHECK: Recipient is arbitrary Solana wallet owned by student
+    pub recipient: UncheckedAccount<'info>,
+
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        constraint = funder_token_account.mint == mint.key(),
+        constraint = funder_token_account.owner == funder.key()
+    )]
+    pub funder_token_account: Account<'info, TokenAccount>,
+
+    #[account(
+        init,
+        payer = funder,
+        space = 8 + StreamAccount::LEN,
+        seeds = [STREAM_SEED, funder.key().as_ref(), recipient.key().as_ref(), &stream_id.to_le_bytes()],
+        bump
+    )]
+    pub stream_account: Account<'info, StreamAccount>,
+
+    #[account(
+        init,
+        payer = funder,
+        seeds = [VAULT_SEED, stream_account.key().as_ref()],
+        bump,
+        token::mint = mint,
+        token::authority = vault_account
+    )]
+    pub vault_account: Account<'info, TokenAccount>,
+
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
-pub struct DepositFunds<'info> {
+pub struct WithdrawStream<'info> {
+    #[account(mut)]
+    pub recipient: Signer<'info>,
+
     #[account(
         mut,
-        has_one = vault,
-        has_one = authority @ BolsaFiError::UnauthorizedSponsor
+        has_one = recipient @ PactoError::UnauthorizedRecipient,
+        has_one = vault_account @ PactoError::InvalidVaultAccount,
     )]
-    pub pool: Account<'info, EndowmentPool>,
+    pub stream_account: Account<'info, StreamAccount>,
 
-    #[account(mut)]
-    pub vault: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, stream_account.key().as_ref()],
+        bump = stream_account.vault_bump
+    )]
+    pub vault_account: Account<'info, TokenAccount>,
 
-    #[account(mut)]
-    pub sponsor_token_account: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        constraint = recipient_token_account.mint == stream_account.mint,
+        constraint = recipient_token_account.owner == recipient.key()
+    )]
+    pub recipient_token_account: Account<'info, TokenAccount>,
 
-    pub authority: Signer<'info>,
-    pub sponsor: Signer<'info>,
     pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
-#[instruction(rate_per_second: u64, cliff_seconds: i64, duration_seconds: i64, milestone_bonus: u64, bump: u8)]
-pub struct CreateStreamGrant<'info> {
-    #[account(
-        mut,
-        has_one = authority @ BolsaFiError::UnauthorizedSponsor
-    )]
-    pub pool: Account<'info, EndowmentPool>,
-
-    #[account(
-        init,
-        payer = authority,
-        space = 8 + GrantStream::LEN,
-        seeds = [b"grant", pool.key().as_ref(), student.key().as_ref()],
-        bump
-    )]
-    pub grant: Account<'info, GrantStream>,
-
-    /// CHECK: Target student receiving academic stream
-    pub student: AccountInfo<'info>,
-
-    /// Academic advisor authorized to attest milestones
-    /// CHECK: Verified via advisor parameter in GrantStream
-    pub advisor: AccountInfo<'info>,
-
+#[instruction(escrow_id: u64)]
+pub struct OpenPixEscrow<'info> {
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub student: Signer<'info>,
 
-    pub system_program: Program<'info, System>,
-}
+    /// CHECK: P2P Liquidity provider wallet
+    pub maker: UncheckedAccount<'info>,
 
-#[derive(Accounts)]
-pub struct AttestMilestone<'info> {
-    #[account(
-        mut,
-        has_one = advisor @ BolsaFiError::UnauthorizedAdvisor
-    )]
-    pub grant: Account<'info, GrantStream>,
-    pub advisor: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct ClaimStream<'info> {
-    #[account(
-        mut,
-        has_one = vault
-    )]
-    pub pool: Account<'info, EndowmentPool>,
+    pub mint: Account<'info, Mint>,
 
     #[account(
         mut,
-        seeds = [b"grant", pool.key().as_ref(), student.key().as_ref()],
-        bump = grant.bump,
-        has_one = pool @ BolsaFiError::MismatchedPool,
-        has_one = student @ BolsaFiError::UnauthorizedStudent
-    )]
-    pub grant: Account<'info, GrantStream>,
-
-    #[account(mut)]
-    pub vault: Account<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        constraint = student_token_account.owner == student.key() @ BolsaFiError::InvalidRecipientTokenAccount,
-        constraint = student_token_account.mint == pool.token_mint @ BolsaFiError::InvalidMint
+        constraint = student_token_account.mint == mint.key(),
+        constraint = student_token_account.owner == student.key()
     )]
     pub student_token_account: Account<'info, TokenAccount>,
 
-    pub student: Signer<'info>,
+    #[account(
+        init,
+        payer = student,
+        space = 8 + PixEscrowAccount::LEN,
+        seeds = [ESCROW_SEED, maker.key().as_ref(), student.key().as_ref(), &escrow_id.to_le_bytes()],
+        bump
+    )]
+    pub pix_escrow: Account<'info, PixEscrowAccount>,
+
+    #[account(
+        init,
+        payer = student,
+        token::mint = mint,
+        token::authority = pix_escrow
+    )]
+    pub escrow_token_vault: Account<'info, TokenAccount>,
+
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
-pub struct TogglePauseGrant<'info> {
-    #[account(
-        has_one = authority @ BolsaFiError::UnauthorizedSponsor
-    )]
-    pub pool: Account<'info, EndowmentPool>,
+pub struct ReleasePixEscrow<'info> {
+    /// Can be confirmed by student upon seeing PIX arrival, or signed with oracle proof
+    pub student: Signer<'info>,
 
     #[account(
         mut,
-        has_one = pool @ BolsaFiError::MismatchedPool
+        has_one = student @ PactoError::UnauthorizedRecipient,
+        seeds = [
+            ESCROW_SEED,
+            pix_escrow.maker.as_ref(),
+            pix_escrow.student.as_ref(),
+            &pix_escrow.escrow_id.to_le_bytes()
+        ],
+        bump = pix_escrow.bump
     )]
-    pub grant: Account<'info, GrantStream>,
+    pub pix_escrow: Account<'info, PixEscrowAccount>,
 
-    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = escrow_token_vault.owner == pix_escrow.key()
+    )]
+    pub escrow_token_vault: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = maker_token_account.mint == pix_escrow.mint,
+        constraint = maker_token_account.owner == pix_escrow.maker
+    )]
+    pub maker_token_account: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
 }
 
 // -----------------------------------------------------------------------------
-// STATE DEFINITIONS
+// STATE SCHEMAS & DATA STRUCTURES
 // -----------------------------------------------------------------------------
 
 #[account]
-pub struct EndowmentPool {
-    pub authority: Pubkey,       // 32
-    pub token_mint: Pubkey,      // 32
-    pub vault: Pubkey,           // 32
-    pub pool_id: u64,            // 8
-    pub total_deposited: u64,    // 8
-    pub total_allocated: u64,    // 8
-    pub total_claimed: u64,      // 8
+pub struct StreamAccount {
+    pub funder: Pubkey,          // 32
+    pub recipient: Pubkey,       // 32
+    pub mint: Pubkey,            // 32
+    pub stream_id: u64,          // 8
+    pub total_amount: u64,       // 8
+    pub claimed_amount: u64,     // 8
+    pub start_time: i64,         // 8
+    pub end_time: i64,           // 8
     pub bump: u8,                // 1
-    pub paused: bool,            // 1
+    pub vault_bump: u8,          // 1
+    pub is_paused: bool,         // 1
 }
 
-impl EndowmentPool {
-    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1;
+impl StreamAccount {
+    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 32; // Includes padding
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+pub enum EscrowStatus {
+    AwaitingFiatTransfer,
+    Completed,
+    Refunded,
 }
 
 #[account]
-pub struct GrantStream {
-    pub pool: Pubkey,                    // 32
-    pub student: Pubkey,                 // 32
-    pub advisor: Pubkey,                 // 32
-    pub rate_per_second: u64,            // 8
-    pub start_time: i64,                 // 8
-    pub cliff_time: i64,                 // 8
-    pub end_time: i64,                   // 8
-    pub last_claimed_timestamp: i64,     // 8
-    pub total_funded: u64,               // 8
-    pub total_claimed: u64,              // 8
-    pub milestone_bonus: u64,            // 8
-    pub milestone_unlocked: bool,        // 1
-    pub is_paused: bool,                 // 1
-    pub bump: u8,                        // 1
+pub struct PixEscrowAccount {
+    pub maker: Pubkey,           // 32
+    pub student: Pubkey,         // 32
+    pub mint: Pubkey,            // 32
+    pub escrow_id: u64,          // 8
+    pub amount: u64,             // 8
+    pub pix_payment_hash: [u8; 32], // 32
+    pub expiry_slot: u64,        // 8
+    pub status: EscrowStatus,    // 1
+    pub bump: u8,                // 1
 }
 
-impl GrantStream {
-    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 1;
+impl PixEscrowAccount {
+    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 32 + 8 + 1 + 1 + 32;
 }
 
 // -----------------------------------------------------------------------------
-// EVENTS
+// EVENTS & ERRORS
 // -----------------------------------------------------------------------------
 
 #[event]
-pub struct PoolInitialized {
-    pub pool: Pubkey,
-    pub authority: Pubkey,
-    pub token_mint: Pubkey,
-    pub pool_id: u64,
-}
-
-#[event]
-pub struct FundsDeposited {
-    pub pool: Pubkey,
-    pub amount: u64,
-    pub new_total: u64,
-}
-
-#[event]
-pub struct GrantCreated {
-    pub grant: Pubkey,
-    pub student: Pubkey,
-    pub total_funded: u64,
+pub struct StreamCreatedEvent {
+    pub funder: Pubkey,
+    pub recipient: Pubkey,
+    pub stream_id: u64,
+    pub total_amount: u64,
+    pub start_time: i64,
     pub end_time: i64,
 }
 
 #[event]
-pub struct MilestoneAttested {
-    pub grant: Pubkey,
-    pub advisor: Pubkey,
-    pub bonus_unlocked: u64,
+pub struct AccrualClaimedEvent {
+    pub stream_id: u64,
+    pub recipient: Pubkey,
+    pub amount: u64,
+    pub remaining_unvested: u64,
 }
 
 #[event]
-pub struct TokensClaimed {
-    pub grant: Pubkey,
+pub struct PixEscrowSettledEvent {
+    pub escrow_id: u64,
+    pub maker: Pubkey,
     pub student: Pubkey,
     pub amount: u64,
-    pub total_claimed: u64,
 }
-
-#[event]
-pub struct GrantPauseToggled {
-    pub grant: Pubkey,
-    pub is_paused: bool,
-}
-
-// -----------------------------------------------------------------------------
-// ERROR CODES
-// -----------------------------------------------------------------------------
 
 #[error_code]
-pub enum BolsaFiError {
-    #[msg("Deposit amount must be greater than zero")]
-    ZeroAmountDeposit,
-    #[msg("Arithmetic overflow occurred during balance calculation")]
-    MathOverflow,
-    #[msg("Grant stream rate per second must be strictly positive")]
-    InvalidStreamingRate,
-    #[msg("Stream duration must be positive")]
+pub enum PactoError {
+    #[msg("Deposit amount must be strictly greater than zero.")]
+    InvalidDepositAmount,
+    #[msg("Duration must be greater than zero seconds.")]
     InvalidDuration,
-    #[msg("Endowment pool does not possess sufficient unallocated liquidity")]
-    InsufficientPoolLiquidity,
-    #[msg("Milestone has already been attested and unlocked")]
-    MilestoneAlreadyAttested,
-    #[msg("Grant stream is paused by faculty dean or sponsor")]
-    GrantPaused,
-    #[msg("Grant cliff period has not yet elapsed")]
-    CliffNotReached,
-    #[msg("No claimable tokens available at current timestamp")]
-    NoClaimableTokens,
-    #[msg("Calculated disbursement exceeds maximum total grant allocation")]
-    ExceedsAllocatedTotal,
-    #[msg("Signer is not authorized as the pool authority")]
-    UnauthorizedSponsor,
-    #[msg("Signer is not authorized as the registered academic advisor")]
-    UnauthorizedAdvisor,
-    #[msg("Provided pool account does not match grant state")]
-    MismatchedPool,
-    #[msg("Signer is not authorized as the beneficiary student")]
-    UnauthorizedStudent,
-    #[msg("Destination token account does not belong to beneficiary student")]
-    InvalidRecipientTokenAccount,
-    #[msg("Provided token account mint does not match endowment token mint")]
-    InvalidMint,
+    #[msg("Arithmetic calculation resulted in an overflow/underflow.")]
+    MathOverflow,
+    #[msg("Stream is currently paused.")]
+    StreamIsPaused,
+    #[msg("Zero claimable tokens available at this timestamp.")]
+    NothingToClaim,
+    #[msg("Caller is not authorized to act as recipient.")]
+    UnauthorizedRecipient,
+    #[msg("Vault address provided does not match stream record.")]
+    InvalidVaultAccount,
+    #[msg("Provided preimage does not match registered PIX verification hash.")]
+    InvalidPreimageHash,
+    #[msg("Escrow is not in the required state.")]
+    InvalidEscrowState,
 }

@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { BolsaFi } from "../target/types/bolsafi";
+import { Pactobrl } from "../target/types/pactobrl";
 import {
   createMint,
   createAccount,
@@ -8,280 +8,261 @@ import {
   getAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { expect } from "chai";
+import { assert, expect } from "chai";
+import * as crypto from "crypto";
 
-describe("BolsaFi Protocol Integration & Security Test Suite", () => {
+describe("PactoBRL End-to-End Lifecycle & Exploit Defense", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.BolsaFi as Program<BolsaFi>;
+  const program = anchor.workspace.Pactobrl as Program<Pactobrl>;
 
-  const universityDean = anchor.web3.Keypair.generate();
-  const academicAdvisor = anchor.web3.Keypair.generate();
+  const funder = anchor.web3.Keypair.generate();
   const student = anchor.web3.Keypair.generate();
-  const maliciousAttacker = anchor.web3.Keypair.generate();
+  const maker = anchor.web3.Keypair.generate();
+  const attacker = anchor.web3.Keypair.generate();
 
-  let brzMint: anchor.web3.Pubkey;
-  let deanTokenAccount: anchor.web3.Pubkey;
-  let studentTokenAccount: anchor.web3.Pubkey;
-  let poolPda: anchor.web3.Pubkey;
-  let poolBump: number;
-  let vaultPda: anchor.web3.Pubkey;
-  let grantPda: anchor.web3.Pubkey;
-  let grantBump: number;
+  let mint: anchor.web3.PublicKey;
+  let funderAta: anchor.web3.PublicKey;
+  let studentAta: anchor.web3.PublicKey;
+  let makerAta: anchor.web3.PublicKey;
 
-  const poolId = new anchor.BN(42);
-  const DEPOSIT_AMOUNT = new anchor.BN(10_000_000_000); // 10,000 BRZ
-  const RATE_PER_SECOND = new anchor.BN(100_000);        // 0.1 BRZ / sec
-  const DURATION_SECONDS = new anchor.BN(60);            // 60 sec stream
-  const MILESTONE_BONUS = new anchor.BN(500_000_000);    // 500 BRZ milestone
+  const streamId = new anchor.BN(9021);
+  const streamAmount = new anchor.BN(10_000_000_000); // 10,000 BRL-denominated tokens (6 decimals)
+  const durationSeconds = new anchor.BN(10); // 10 seconds rapid vest for testing
+
+  // PIX Preimage data
+  const pixPreimage = crypto.randomBytes(32);
+  const pixHash = crypto.createHash("sha256").update(pixPreimage).digest();
 
   before(async () => {
-    // AirDrop SOL to all signers
-    for (const kp of [universityDean, academicAdvisor, student, maliciousAttacker]) {
-      const sig = await provider.connection.requestAirdrop(kp.publicKey, 5 * anchor.web3.LAMPORTS_PER_SOL);
-      const latestBlockhash = await provider.connection.getLatestBlockhash();
-      await provider.connection.confirmTransaction({
-        signature: sig,
-        ...latestBlockhash,
-      });
+    // Fund test wallets with SOL
+    for (const kp of [funder, student, maker, attacker]) {
+      const sig = await provider.connection.requestAirdrop(
+        kp.publicKey,
+        5 * anchor.web3.LAMPORTS_PER_SOL
+      );
+      await provider.connection.confirmTransaction(sig, "confirmed");
     }
 
-    // Initialize Mock BRZ Mint
-    brzMint = await createMint(
+    // Deploy test SPL token (representing BRLA / BRZ)
+    mint = await createMint(
       provider.connection,
-      universityDean,
-      universityDean.publicKey,
+      funder,
+      funder.publicKey,
       null,
       6
     );
 
-    // Derive PDAs
-    [poolPda, poolBump] = anchor.web3.Pubkey.findProgramAddressSync(
+    funderAta = await createAccount(provider.connection, funder, mint, funder.publicKey);
+    studentAta = await createAccount(provider.connection, student, mint, student.publicKey);
+    makerAta = await createAccount(provider.connection, maker, mint, maker.publicKey);
+
+    // Mint 25,000 tokens to funder
+    await mintTo(
+      provider.connection,
+      funder,
+      mint,
+      funderAta,
+      funder.publicKey,
+      25_000_000_000
+    );
+  });
+
+  it("QA-01: Successfully creates continuous milestone stream with correct PDA locking", async () => {
+    const [streamPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [
-        Buffer.from("endowment"),
-        universityDean.publicKey.toBuffer(),
-        poolId.toArrayLike(Buffer, "le", 8),
+        Buffer.from("stream"),
+        funder.publicKey.toBuffer(),
+        student.publicKey.toBuffer(),
+        streamId.toArrayLike(Buffer, "le", 8),
       ],
       program.programId
     );
 
-    [vaultPda] = anchor.web3.Pubkey.findProgramAddressSync(
-      [Buffer.from("vault"), poolPda.toBuffer()],
+    const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), streamPda.toBuffer()],
       program.programId
     );
 
-    [grantPda, grantBump] = anchor.web3.Pubkey.findProgramAddressSync(
-      [Buffer.from("grant"), poolPda.toBuffer(), student.publicKey.toBuffer()],
-      program.programId
-    );
-
-    // Create Token Accounts
-    deanTokenAccount = await createAccount(
-      provider.connection,
-      universityDean,
-      brzMint,
-      universityDean.publicKey
-    );
-
-    studentTokenAccount = await createAccount(
-      provider.connection,
-      student,
-      brzMint,
-      student.publicKey
-    );
-
-    // Mint initial funds to Dean
-    await mintTo(
-      provider.connection,
-      universityDean,
-      brzMint,
-      deanTokenAccount,
-      universityDean,
-      20_000_000_000
-    );
-  });
-
-  it("1. Initializes an Endowment Pool PDA & Escrow Vault", async () => {
     await program.methods
-      .initializePool(poolId, poolBump)
-      .accounts({
-        pool: poolPda,
-        tokenMint: brzMint,
-        vault: vaultPda,
-        authority: universityDean.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
+      .createStream(streamId, streamAmount, durationSeconds)
+      .accountsStrict({
+        funder: funder.publicKey,
+        recipient: student.publicKey,
+        mint,
+        funderTokenAccount: funderAta,
+        streamAccount: streamPda,
+        vaultAccount: vaultPda,
         tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([universityDean])
+      .signers([funder])
       .rpc();
-
-    const poolAccount = await program.account.endowmentPool.fetch(poolPda);
-    expect(poolAccount.authority.toBase58()).to.equal(universityDean.publicKey.toBase58());
-    expect(poolAccount.totalDeposited.toNumber()).to.equal(0);
-    expect(poolAccount.totalAllocated.toNumber()).to.equal(0);
-  });
-
-  it("2. Deposits BRZ stablecoins into Endowment Vault", async () => {
-    await program.methods
-      .depositFunds(DEPOSIT_AMOUNT)
-      .accounts({
-        pool: poolPda,
-        vault: vaultPda,
-        sponsorTokenAccount: deanTokenAccount,
-        authority: universityDean.publicKey,
-        sponsor: universityDean.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .signers([universityDean])
-      .rpc();
-
-    const poolAccount = await program.account.endowmentPool.fetch(poolPda);
-    expect(poolAccount.totalDeposited.toNumber()).to.equal(DEPOSIT_AMOUNT.toNumber());
 
     const vaultInfo = await getAccount(provider.connection, vaultPda);
-    expect(Number(vaultInfo.amount)).to.equal(DEPOSIT_AMOUNT.toNumber());
+    assert.equal(vaultInfo.amount.toString(), streamAmount.toString());
+
+    const accountData = await program.account.streamAccount.fetch(streamPda);
+    expect(accountData.funder.toBase58()).to.equal(funder.publicKey.toBase58());
+    expect(accountData.recipient.toBase58()).to.equal(student.publicKey.toBase58());
+    expect(accountData.totalAmount.toNumber()).to.equal(streamAmount.toNumber());
   });
 
-  it("3. Creates a Programmatic Stream Grant with Cliff & Milestone for Student", async () => {
-    const cliffSeconds = new anchor.BN(2); // 2-second cliff for test speed
+  it("QA-02: Enforces Linear Vesting Accrual and Rejects Frontrunning / Premature Extraction", async () => {
+    const [streamPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("stream"),
+        funder.publicKey.toBuffer(),
+        student.publicKey.toBuffer(),
+        streamId.toArrayLike(Buffer, "le", 8),
+      ],
+      program.programId
+    );
+
+    const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), streamPda.toBuffer()],
+      program.programId
+    );
+
+    // Wait 3 seconds to accrue roughly 30%
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const balBefore = (await getAccount(provider.connection, studentAta)).amount;
 
     await program.methods
-      .createStreamGrant(
-        RATE_PER_SECOND,
-        cliffSeconds,
-        DURATION_SECONDS,
-        MILESTONE_BONUS,
-        grantBump
-      )
-      .accounts({
-        pool: poolPda,
-        grant: grantPda,
-        student: student.publicKey,
-        advisor: academicAdvisor.publicKey,
-        authority: universityDean.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .signers([universityDean])
-      .rpc();
-
-    const grantAccount = await program.account.grantStream.fetch(grantPda);
-    expect(grantAccount.student.toBase58()).to.equal(student.publicKey.toBase58());
-    expect(grantAccount.advisor.toBase58()).to.equal(academicAdvisor.publicKey.toBase58());
-    expect(grantAccount.milestoneUnlocked).to.be.false;
-  });
-
-  it("4. Security Test: Malicious actor cannot attest academic milestones", async () => {
-    try {
-      await program.methods
-        .attestMilestone()
-        .accounts({
-          grant: grantPda,
-          advisor: maliciousAttacker.publicKey,
-        })
-        .signers([maliciousAttacker])
-        .rpc();
-      expect.fail("Unauthorized attestation should have been rejected!");
-    } catch (err: any) {
-      expect(err.error.errorCode.code).to.equal("UnauthorizedAdvisor");
-    }
-  });
-
-  it("5. Advisor validates milestone and unlocks bonus", async () => {
-    await program.methods
-      .attestMilestone()
-      .accounts({
-        grant: grantPda,
-        advisor: academicAdvisor.publicKey,
-      })
-      .signers([academicAdvisor])
-      .rpc();
-
-    const grantAccount = await program.account.grantStream.fetch(grantPda);
-    expect(grantAccount.milestoneUnlocked).to.be.true;
-  });
-
-  it("6. Student claims accrued stream balance + milestone bonus", async () => {
-    // Sleep 4 seconds to bypass cliff and accrue stream
-    await new Promise((resolve) => setTimeout(resolve, 4000));
-
-    const initialStudentBalance = (await getAccount(provider.connection, studentTokenAccount)).amount;
-
-    await program.methods
-      .claimStream()
-      .accounts({
-        pool: poolPda,
-        grant: grantPda,
-        vault: vaultPda,
-        studentTokenAccount: studentTokenAccount,
-        student: student.publicKey,
+      .withdrawStreamAccrual()
+      .accountsStrict({
+        recipient: student.publicKey,
+        streamAccount: streamPda,
+        vaultAccount: vaultPda,
+        recipientTokenAccount: studentAta,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([student])
       .rpc();
 
-    const postClaimBalance = (await getAccount(provider.connection, studentTokenAccount)).amount;
-    const diff = Number(postClaimBalance - initialStudentBalance);
+    const balAfter = (await getAccount(provider.connection, studentAta)).amount;
+    const diff = Number(balAfter - balBefore);
 
-    // Must have claimed at least 4 seconds worth + 500 BRZ milestone
-    const minExpected = RATE_PER_SECOND.toNumber() * 3 + MILESTONE_BONUS.toNumber();
-    expect(diff).to.be.at.least(minExpected);
+    // Assert that ~30% (+/- tolerance for block production timing) was claimed
+    expect(diff).to.be.greaterThan(2_000_000_000);
+    expect(diff).to.be.lessThan(8_000_000_000);
   });
 
-  it("7. Security Test: Re-claim immediately results in NoClaimableTokens error", async () => {
+  it("QA-03: Security Revert - Attacker cannot steal funds using fake recipient signature", async () => {
+    const [streamPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("stream"),
+        funder.publicKey.toBuffer(),
+        student.publicKey.toBuffer(),
+        streamId.toArrayLike(Buffer, "le", 8),
+      ],
+      program.programId
+    );
+
+    const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), streamPda.toBuffer()],
+      program.programId
+    );
+
+    const attackerAta = await createAccount(
+      provider.connection,
+      attacker,
+      mint,
+      attacker.publicKey
+    );
+
     try {
       await program.methods
-        .claimStream()
-        .accounts({
-          pool: poolPda,
-          grant: grantPda,
-          vault: vaultPda,
-          studentTokenAccount: studentTokenAccount,
-          student: student.publicKey,
+        .withdrawStreamAccrual()
+        .accountsStrict({
+          recipient: attacker.publicKey,
+          streamAccount: streamPda,
+          vaultAccount: vaultPda,
+          recipientTokenAccount: attackerAta,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
-        .signers([student])
+        .signers([attacker])
         .rpc();
-      expect.fail("Expected immediate zero-time claim to fail");
+      assert.fail("Should have thrown UnauthorizedRecipient error");
     } catch (err: any) {
-      expect(err.error.errorCode.code).to.equal("NoClaimableTokens");
+      expect(err.toString()).to.include("UnauthorizedRecipient");
     }
   });
 
-  it("8. Dean pauses grant due to academic freeze, blocking subsequent claims", async () => {
+  it("QA-04: Executes Atomic P2P PIX Ramp Escrow and verifies preimage settlement", async () => {
+    const escrowId = new anchor.BN(4422);
+    const swapAmount = new anchor.BN(1_000_000_000); // 1,000 tokens
+
+    const [escrowPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("pix_escrow"),
+        maker.publicKey.toBuffer(),
+        student.publicKey.toBuffer(),
+        escrowId.toArrayLike(Buffer, "le", 8),
+      ],
+      program.programId
+    );
+
+    const escrowVault = anchor.web3.Keypair.generate();
+
+    // Student locks accrued tokens into PIX Escrow
     await program.methods
-      .togglePauseGrant()
-      .accounts({
-        pool: poolPda,
-        grant: grantPda,
-        authority: universityDean.publicKey,
+      .openPixEscrow(
+        escrowId,
+        swapAmount,
+        Array.from(pixHash) as unknown as number[],
+        new anchor.BN(100)
+      )
+      .accountsStrict({
+        student: student.publicKey,
+        maker: maker.publicKey,
+        mint,
+        studentTokenAccount: studentAta,
+        pixEscrow: escrowPda,
+        escrowTokenVault: escrowVault.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([universityDean])
+      .signers([student, escrowVault])
       .rpc();
 
-    const grant = await program.account.grantStream.fetch(grantPda);
-    expect(grant.isPaused).to.be.true;
-
-    // Sleep 2 seconds
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
+    // Verify invalid hash preimage gets rejected
+    const invalidPreimage = crypto.randomBytes(32);
     try {
       await program.methods
-        .claimStream()
-        .accounts({
-          pool: poolPda,
-          grant: grantPda,
-          vault: vaultPda,
-          studentTokenAccount: studentTokenAccount,
+        .releasePixEscrow(Array.from(invalidPreimage) as unknown as number[])
+        .accountsStrict({
           student: student.publicKey,
+          pixEscrow: escrowPda,
+          escrowTokenVault: escrowVault.publicKey,
+          makerTokenAccount: makerAta,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .signers([student])
         .rpc();
-      expect.fail("Paused stream claim should have reverted!");
+      assert.fail("Should have failed invalid preimage check");
     } catch (err: any) {
-      expect(err.error.errorCode.code).to.equal("GrantPaused");
+      expect(err.toString()).to.include("InvalidPreimageHash");
     }
+
+    // Settle with valid preimage
+    await program.methods
+      .releasePixEscrow(Array.from(pixPreimage) as unknown as number[])
+      .accountsStrict({
+        student: student.publicKey,
+        pixEscrow: escrowPda,
+        escrowTokenVault: escrowVault.publicKey,
+        makerTokenAccount: makerAta,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([student])
+      .rpc();
+
+    const makerBal = (await getAccount(provider.connection, makerAta)).amount;
+    expect(makerBal.toString()).to.equal(swapAmount.toString());
   });
 });

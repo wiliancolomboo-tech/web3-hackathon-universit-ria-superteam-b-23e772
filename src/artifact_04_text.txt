@@ -1,0 +1,26 @@
+[00:00 - 00:20] THE HOOK & THE CRISIS IN BRAZILIAN UNIVERSITIES
+Visual: Split screen: High-paced footage of university students in São Paulo / Brasília alongside slow bank bureaucracy graphics.
+Spoken Narrative:
+"In Brazil, higher education is the ultimate economic equalizer, yet over 3 million students drop out every cycle—not because they can't pass exams, but because of acute cash-flow delays in CAPES stipends, FIES bureaucracy, and opaque university funding. Meanwhile, donors and foundations have no real-time transparency into how their grants are distributed. Today, we change that forever."
+
+[00:20 - 00:45] INTRODUCING EDUVAULT ON SOLANA
+Visual: Terminal popping open. Fast camera zoom onto Anchor compilation output and EduVault UI.
+Spoken Narrative:
+"Introducing EduVault: the first decentralized continuous micro-grant and academic streaming protocol built natively on Solana. EduVault turns lumpy, delayed monthly grants into real-time payment streams. By leveraging Solana’s sub-second finality and sub-cent fees, scholarships flow into student wallets every single second in BRZ or USDC."
+
+[00:45 - 01:15] LIVE ARCHITECTURE & THE CODE
+Visual: Screen recording of CLI executing `anchor test`. Mermaid flowchart displayed showing University Authority signing a soulbound student profile PDA, followed by sponsor depositing funds into the Stream Vault.
+Spoken Narrative:
+"Let’s look at the contract in action. First, verified Brazilian university institutions act as on-chain Oracles, issuing a Soulbound Student Profile PDA using cryptographic CPF hashes. 
+Next, a philanthropic donor or corporate sponsor locks funds into our deterministic Stream Vault PDA. The contract calculates streaming balances per second via checked math. 
+Watch this live test: the student calls `claim_stream`. In less than 400 milliseconds, the PDA signs a CPI to the SPL Token Program, instantly unlocking liquid funds with zero intermediaries."
+
+[01:15 - 01:40] PERFORMANCE, SECURITY & GAS BENCHMARKS
+Visual: Compute Unit optimization matrix displayed. Highlight CU usage: ~26,000 CUs for a claim instruction. 
+Spoken Narrative:
+"We engineered EduVault for production scale. A claim transaction burns under 27,000 Compute Units, costing fractions of a centavo. Our state model features strict Checks-Effects-Interactions, preventing reentrancy, while cryptographic seed constraints make PDA spoofing mathematically impossible. If a student pauses their studies, sponsors can instantly reclaim unvested capital with zero legal friction."
+
+[01:40 - 02:00] THE WINNING VISION FOR SUPERTEAM BRASIL
+Visual: Dynamic roadmap slide: Q3 Integration with Pix On-Ramp via Solana Pay, partnerships with federal university labs (USP, Unicamp, UnB). Call to action with GitHub link.
+Spoken Narrative:
+"EduVault is not just a hackathon prototype; it is ready to power Brazilian education. With planned Solana Pay and Pix instant off-ramps, students can buy lunch at the university restaurant directly from their streaming grant. Superteam Brasil, vote for real-world impact. Vote for EduVault—bringing Brazilian universities on-chain!"

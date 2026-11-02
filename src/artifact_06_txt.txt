@@ -1,0 +1,29 @@
+[00:00 - 00:20] THE HOOK & REGIONAL PROBLEM
+Visual: Screen displays news headlines highlighting CNPq/CAPES federal scholarship payment delays across USP, UNICAMP, and UFRJ.
+Speaker (Portuguese/English):
+"Fala galera do Superteam Brasil! Toda universidade brasileira sofre com o mesmo gargalo: burocracia acadêmica. Grants de pesquisa demoram até um ano para serem liberados, e quando chegam, caem em contas tradicionais sem nenhum acompanhamento de entregas.
+Introducing Universitas: O protocolo de micro-endowment e streaming contínuo de bolsas de pesquisa construído na Solana."
+
+[00:20 - 00:50] ARCHITECTURE & PROTOCOL MECHANICS
+Visual: Visual walkthrough of the Anchor architecture diagram. Terminal opens executing tests in 60 FPS.
+Speaker:
+"Ao contrário do financiamento convencional, o Universitas utiliza Solana Program Derived Addresses para atrelar a liquidez a marcos reais. 
+Alunos e pesquisadores registram seus projetos, enquanto ex-alunos e patrocinadores institucionais aportam capital diretamente em um cofre protegido por PDA. 
+A liberação de capital não é lump-sum: os recursos vestem linearmente por segundo diretamente do cofre SPL, garantindo sustentabilidade operacional diária."
+
+[00:50 - 01:25] LIVE CLI DEMO & MULTI-SUPERVISOR ATTESTATION
+Visual: CLI splitscreen showing `anchor test` passing all 7 security integration tests, followed by the frontend dashboard.
+Speaker:
+"Vejam isto em ação: O orientador submete a prova criptográfica do marco acadêmico via hash IPFS na instrução 'attest_milestone'.
+Imediatamente, o contrato recalcula o teto disponível. Quando o estudante chama 'claim_vested_funds', o saldo é transferido em menos de 400 milissegundos, consumindo apenas 21.000 Compute Units — custando menos de uma fração de centavo de Real.
+Se houver abandono ou fraude acadêmica? A governança cancela o grant e executa o clawback automático do capital não-vestido."
+
+[01:25 - 01:45] WHY UNIVERSITAS WINS
+Visual: Comparison card highlighting traditional CNPq vs. Universitas Protocol metrics (12 months vs 400ms; R$ 150 bank fees vs < R$ 0.001).
+Speaker:
+"Universitas não é apenas um experimento teórico: é infraestrutura financeira pronta para o ecossistema universitário brasileiro. É a união perfeita da alta taxa de transferência da Solana com o impacto social mais urgente da América Latina: acelerar a ciência e a inovação aberta."
+
+[01:45 - 02:00] THE CALL TO ACTION
+Visual: Universitas GitHub repository URL, live Devnet Program ID, and Superteam Brasil logo.
+Speaker:
+"Nosso programa está deployado na Solana Devnet, auditado com 100% de cobertura nos testes e pronto para integração. Vamos transformar o futuro da educação no Brasil com a Solana. Muito obrigado!"

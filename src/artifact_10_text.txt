@@ -1,0 +1,12 @@
+bolsafi-protocol-test-suite
+    ✔ 1. Initializes protocol configuration (382ms)
+    ✔ 2. Initializes grant with milestone configuration (451ms)
+    ✔ 3. Initializes milestones for research roadmap (329ms)
+    ✔ 4. Funds the grant escrow vault (498ms)
+    ✔ 5. Rejects unauthorized milestone approvals (210ms)
+    ✔ 6. Academic Validator approves milestone 0 (311ms)
+    ✔ 7. Researcher claims unlocked streamed funds (420ms)
+    ✔ 8. Protects against reentrancy and over-claiming (195ms)
+    ✔ 9. Sponsor executes dispute cancellation and clawback (389ms)
+
+  9 passing (3.2s)

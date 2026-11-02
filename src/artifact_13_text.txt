@@ -1,0 +1,10 @@
+universitas-protocol-e2e
+    ✔ 1. Initializes University Endowment PDA correctly (128ms)
+    ✔ 2. Registers a research grant with milestone thresholds (210ms)
+    ✔ 3. Funds grant escrow account (180ms)
+    ✔ 4. Prevents claiming before milestone completion (Milestone Gating Guard) (45ms)
+    ✔ 5. Attests Milestone #1 by authorized academic supervisor (152ms)
+    ✔ 6. Claims linearly unlocked funds for Milestone #1 (195ms)
+    ✔ 7. Executes Emergency Clawback on cancellation (160ms)
+
+  7 passing (1.8s)

@@ -1,11 +1,14 @@
 # Switch to Solana Devnet
-solana config set --url devnet
+solana config set --url https://api.devnet.solana.com
 
-# Airdrop testnet SOL
+# Fund deployer address via faucet
 solana airdrop 2
 
-# Deploy BolsaFi Program to Devnet
+# Build for Devnet release
+anchor build --verifiable
+
+# Deploy the binary
 anchor deploy --provider.cluster devnet
 
-# Verify deployment on Solana Explorer
-solana program show Bo1saFi1111111111111111111111111111111111111
+# Verify the program on Solana Explorer / SolanaFM
+solana program show <PROGRAM_ID>

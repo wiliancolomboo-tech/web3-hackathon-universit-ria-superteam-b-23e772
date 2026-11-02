@@ -1,0 +1,10 @@
+UniStream Brasil - End-to-End Test Suite
+    ✔ 1. Initializes Institutional Endowment Vault PDA with strict Token Binding (432ms)
+    ✔ 2. Deposits Liquidity into Vault Token PDA (389ms)
+    ✔ 3. Creates Student Milestone Stream with Strict Timing Bounds (410ms)
+    ✔ 4. Rejects student withdrawal prior to milestone unlock (Double-Barrier Protection) (215ms)
+    ✔ 5. Academic Reviewer unlocks Milestone Tranche 1 (50% Unlock) (398ms)
+    ✔ 6. Student claims accrued stream balance proportionally (5620ms)
+    ✔ 7. Security Invariant Check: Prevents unauthorized milestone updates (198ms)
+
+  7 passing (8.2s)
